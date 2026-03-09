@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Space_Grotesk } from "next/font/google";
+import AppShell from "@/components/app-shell";
 import "@/styles/globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -19,34 +19,27 @@ export default function RootLayout({
 }: Readonly<{
     children: React.ReactNode;
 }>) {
+    const themeInitScript = `
+        (() => {
+            try {
+                const storedTheme = window.localStorage.getItem("permit-agent-theme");
+                const theme =
+                    storedTheme === "light" || storedTheme === "dark"
+                        ? storedTheme
+                        : window.matchMedia("(prefers-color-scheme: dark)").matches
+                          ? "dark"
+                          : "light";
+                document.documentElement.dataset.theme = theme;
+                document.documentElement.style.colorScheme = theme;
+            } catch {}
+        })();
+    `;
+
     return (
-        <html lang="en" className={spaceGrotesk.variable}>
+        <html lang="en" className={spaceGrotesk.variable} suppressHydrationWarning>
             <body>
-                <div className="container">
-                    <nav className="nav">
-                        <Link href="/" className="nav-brand">
-                            Permit Agent
-                        </Link>
-                        <ul className="nav-links">
-                            <li>
-                                <Link href="/">Intake</Link>
-                            </li>
-                            <li>
-                                <Link href="/workflows">Workflows</Link>
-                            </li>
-                            <li>
-                                <Link href="/">New Chat</Link>
-                            </li>
-                        </ul>
-                    </nav>
-                    {children}
-                    <div className="disclaimer">
-                        <strong>Legal Disclaimer:</strong> This tool provides automation
-                        support for permit research and document processing. It does not
-                        constitute legal advice. All outputs should be reviewed by qualified
-                        professionals before submission to governing authorities.
-                    </div>
-                </div>
+                <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+                <AppShell>{children}</AppShell>
             </body>
         </html>
     );
