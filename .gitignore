@@ -1,0 +1,24 @@
+# dependencies
+node_modules
+
+# next
+.next
+out
+
+# build
+coverage
+playwright-report
+test-results
+tsconfig.tsbuildinfo
+
+# env
+.env
+.env.*
+!.env.example
+
+# misc
+.DS_Store
+*.log
+
+# vercel
+.vercel
