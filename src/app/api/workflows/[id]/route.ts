@@ -1,6 +1,9 @@
-import { NextResponse } from "next/server";
-import { success, fail } from "@/lib/api-utils";
-import { getWorkflow, getWorkflowTimeline } from "@/lib/db/repositories";
+import { fail, success } from "@/lib/api-utils";
+import {
+    getReviewDecisions,
+    getWorkflow,
+    getWorkflowTimeline,
+} from "@/lib/db/repositories";
 
 export async function GET(
     _req: Request,
@@ -9,11 +12,22 @@ export async function GET(
     try {
         const { id } = await params;
         const workflow = await getWorkflow(id);
-        if (!workflow) return fail("not_found", "Workflow not found", 404);
-        const timeline = await getWorkflowTimeline(id);
-        return success({ workflow, timeline });
-    } catch (err) {
-        console.error("[api]", err);
+        if (!workflow) {
+            return fail("not_found", "Workflow not found", 404);
+        }
+
+        const [timeline, reviewDecisions] = await Promise.all([
+            getWorkflowTimeline(id),
+            getReviewDecisions(id),
+        ]);
+
+        return success({
+            workflow,
+            timeline,
+            reviewDecisions,
+        });
+    } catch (error) {
+        console.error("[api]", error);
         return fail("internal", "An unexpected error occurred");
     }
 }

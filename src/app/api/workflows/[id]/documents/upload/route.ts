@@ -1,7 +1,7 @@
-import { success, fail } from "@/lib/api-utils";
-import { getWorkflow, addDocument } from "@/lib/db/repositories";
-import { uploadBlob } from "@/lib/blob";
-import { createHash } from "crypto";
+import { WORKFLOW_EVENTS } from "@/contracts";
+import { fail, success } from "@/lib/api-utils";
+import { isInngestConfigured, sendEvent } from "@/lib/inngest/client";
+import { processWorkflowDocumentUpload } from "@/lib/workflows";
 
 export async function POST(
     req: Request,
@@ -9,33 +9,43 @@ export async function POST(
 ) {
     try {
         const { id } = await params;
-        const workflow = await getWorkflow(id);
-        if (!workflow) return fail("not_found", "Workflow not found", 404);
-
         const formData = await req.formData();
-        const file = formData.get("file") as File | null;
-        const kind = (formData.get("kind") as string) || "other";
+        const file = formData.get("file");
+        const kind = String(formData.get("kind") ?? "other");
 
-        if (!file) return fail("validation", "No file provided", 400);
+        if (!(file instanceof File)) {
+            return fail("validation", "No file provided", 400);
+        }
 
-        const arrayBuffer = await file.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
-        const checksum = createHash("sha256").update(buffer).digest("hex");
-
-        const blobPath = `workflows/${id}/uploads/${file.name}`;
-        await uploadBlob(blobPath, buffer, file.type);
-
-        const doc = await addDocument({
+        const buffer = Buffer.from(await file.arrayBuffer());
+        const result = await processWorkflowDocumentUpload({
             workflowId: id,
+            fileName: file.name,
+            mimeType: file.type || "application/octet-stream",
             kind,
-            blobPath,
-            mimeType: file.type,
-            checksum,
+            buffer,
         });
 
-        return success(doc, 201);
-    } catch (err) {
-        console.error("[api]", err);
+        if (isInngestConfigured()) {
+            await sendEvent({
+                name: WORKFLOW_EVENTS.DOCUMENTS_PROCESSED,
+                data: {
+                    workflowId: id,
+                    documentId: result.document.id,
+                },
+            });
+            await sendEvent({
+                name: WORKFLOW_EVENTS.GAP_GENERATED,
+                data: {
+                    workflowId: id,
+                    gapCount: result.gaps.length,
+                },
+            });
+        }
+
+        return success(result, 201);
+    } catch (error) {
+        console.error("[api]", error);
         return fail("internal", "An unexpected error occurred");
     }
 }

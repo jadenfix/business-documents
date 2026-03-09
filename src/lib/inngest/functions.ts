@@ -2,7 +2,6 @@ import { WORKFLOW_EVENTS } from "@/contracts";
 import { inngest } from "./client";
 import {
     handleWorkflowCreated,
-    recomputeWorkflowGaps,
     runWorkflowFormsFill,
     runWorkflowResearch,
 } from "@/lib/workflows";
@@ -75,7 +74,6 @@ export const formsFillPipeline = inngest.createFunction(
         const { workflowId } = event.data as { workflowId: string };
 
         const result = await step.run("run-forms-fill", async () => runWorkflowFormsFill(workflowId));
-        const gaps = await step.run("refresh-gaps", async () => recomputeWorkflowGaps(workflowId));
 
         await step.sendEvent("forms-fill-completed", {
             name: WORKFLOW_EVENTS.FORMS_FILL_COMPLETED,
@@ -89,7 +87,7 @@ export const formsFillPipeline = inngest.createFunction(
             name: WORKFLOW_EVENTS.GAP_GENERATED,
             data: {
                 workflowId,
-                gapCount: gaps.length,
+                gapCount: result.gaps.length,
             },
         });
 

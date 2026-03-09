@@ -152,7 +152,7 @@ export async function recomputeWorkflowGaps(workflowId: string) {
 
 export async function handleWorkflowCreated(workflowId: string) {
     await repo.updateWorkflowStatus(workflowId, "classification.completed");
-    return runWorkflowResearch(workflowId);
+    return repo.getWorkflow(workflowId);
 }
 
 export async function runWorkflowResearch(workflowId: string) {
