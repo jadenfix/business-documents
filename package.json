@@ -27,6 +27,7 @@
     "pdf-lib": "^1.17.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "vercel": "^50.28.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {
