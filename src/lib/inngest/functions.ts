@@ -9,7 +9,7 @@ import {
 export const workflowCreatedPipeline = inngest.createFunction(
     {
         id: "workflow-created-pipeline",
-        concurrency: [{ scope: "event", limit: 1, key: "event.data.workflowId" }],
+        concurrency: [{ limit: 1, key: "event.data.workflowId" }],
     },
     { event: WORKFLOW_EVENTS.WORKFLOW_CREATED },
     async ({ event, step }) => {
@@ -31,7 +31,7 @@ export const workflowCreatedPipeline = inngest.createFunction(
 export const researchPipeline = inngest.createFunction(
     {
         id: "research-pipeline",
-        concurrency: [{ scope: "event", limit: 1, key: "event.data.workflowId" }],
+        concurrency: [{ limit: 1, key: "event.data.workflowId" }],
         retries: 2,
     },
     { event: WORKFLOW_EVENTS.RESEARCH_STARTED },
@@ -66,7 +66,7 @@ export const researchPipeline = inngest.createFunction(
 export const formsFillPipeline = inngest.createFunction(
     {
         id: "forms-fill-pipeline",
-        concurrency: [{ scope: "event", limit: 1, key: "event.data.workflowId" }],
+        concurrency: [{ limit: 1, key: "event.data.workflowId" }],
         retries: 1,
     },
     { event: WORKFLOW_EVENTS.FORMS_FILL_STARTED },

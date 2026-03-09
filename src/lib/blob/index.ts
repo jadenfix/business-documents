@@ -36,6 +36,12 @@ async function toBuffer(data: Buffer | ReadableStream | string) {
     return Buffer.from(arrayBuffer);
 }
 
+async function getPayloadSize(data: Buffer | ReadableStream | string) {
+    if (typeof data === "string") return Buffer.byteLength(data);
+    if (Buffer.isBuffer(data)) return data.length;
+    return (await toBuffer(data)).length;
+}
+
 async function walkLocalBlobs(dir: string, prefix = ""): Promise<BlobObject[]> {
     const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
     const results: BlobObject[] = [];
@@ -69,6 +75,8 @@ export async function uploadBlob(
     data: Buffer | ReadableStream | string,
     contentType: string
 ) {
+    const size = await getPayloadSize(data);
+
     if (useLocalBlobStorage()) {
         const buffer = await toBuffer(data);
         const absolutePath = getLocalBlobPath(pathname);
@@ -79,7 +87,7 @@ export async function uploadBlob(
             url: `/api/blob/${pathname}`,
             pathname,
             downloadUrl: `/api/blob/${pathname}`,
-            size: buffer.length,
+            size,
             contentType,
         };
     }
@@ -94,7 +102,7 @@ export async function uploadBlob(
         url: blob.url,
         pathname: blob.pathname,
         downloadUrl: blob.downloadUrl ?? blob.url,
-        size: blob.size,
+        size,
         contentType,
     };
 }
@@ -111,7 +119,6 @@ export async function listBlobs(prefix: string) {
         pathname: blob.pathname,
         downloadUrl: blob.downloadUrl ?? blob.url,
         size: blob.size,
-        contentType: blob.contentType,
     }));
 }
 
