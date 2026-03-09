@@ -1,5 +1,6 @@
 import { fail, success } from "@/lib/api-utils";
 import {
+    getDocuments,
     getFormFills,
     getFormTemplatesWithFields,
     getReviewDecisions,
@@ -17,7 +18,8 @@ export async function GET(
             return fail("not_found", "Workflow not found", 404);
         }
 
-        const [templates, fills, reviewDecisions] = await Promise.all([
+        const [documents, templates, fills, reviewDecisions] = await Promise.all([
+            getDocuments(id),
             getFormTemplatesWithFields(id),
             getFormFills(id),
             getReviewDecisions(id),
@@ -25,6 +27,11 @@ export async function GET(
 
         return success({
             workflowId: id,
+            documents: documents.map((document) => ({
+                ...document,
+                fileName: document.blobPath.split("/").pop() ?? document.blobPath,
+                downloadUrl: `/api/blob/${document.blobPath}`,
+            })),
             templates: templates.map(({ template, fields }) => ({
                 ...template,
                 fields,

@@ -170,22 +170,28 @@ export async function runWorkflowResearch(workflowId: string) {
     );
 
     await repo.clearRequirements(workflowId);
-    const savedRequirements = await repo.addRequirements(workflowId, result.requirements);
+    const savedRequirements = await repo.addRequirements(
+        workflowId,
+        result.requirements.map((requirement) => ({
+            title: requirement.title,
+            description: requirement.description,
+            sourceUrl: requirement.sourceUrl,
+            sourceType: requirement.sourceType,
+            required: requirement.required,
+            fee: requirement.fee,
+            dueDate: requirement.dueDate,
+            confidence: requirement.confidence,
+        }))
+    );
 
-    const citations = savedRequirements.flatMap((requirement) =>
-        result.citations
-            .filter(
-                (citation) =>
-                    citation.url === requirement.sourceUrl ||
-                    citation.url === result.requirements.find((item) => item.title === requirement.title)?.sourceUrl
-            )
-            .map((citation) => ({
-                requirementId: requirement.id,
-                url: citation.url,
-                title: citation.title,
-                snippet: citation.snippet,
-                isOfficial: citation.isOfficial,
-            }))
+    const citations = savedRequirements.flatMap((requirement, index) =>
+        (result.requirements[index]?.citations ?? []).map((citation) => ({
+            requirementId: requirement.id,
+            url: citation.url,
+            title: citation.title,
+            snippet: citation.snippet,
+            isOfficial: citation.isOfficial,
+        }))
     );
 
     await repo.addCitations(citations);
