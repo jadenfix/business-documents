@@ -29,9 +29,11 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "vercel": "^50.28.0",
+    "yarn": "^1.22.22",
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
     "@playwright/test": "^1.52.0",
     "@types/node": "^22.13.0",
     "@types/react": "^19.0.10",
