@@ -64,7 +64,7 @@ export function fail(
 
 /* ---------- Route handler wrapper ---------- */
 type RouteContext = {
-    params?: Promise<Record<string, string | string[]>>;
+    params: Promise<Record<string, string | string[]>>;
 };
 
 export function handler(
