@@ -1,5 +1,12 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { Space_Grotesk } from "next/font/google";
 import "@/styles/globals.css";
+
+const spaceGrotesk = Space_Grotesk({
+    subsets: ["latin"],
+    variable: "--font-ui",
+});
 
 export const metadata: Metadata = {
     title: "Permit Agent – Business Document Automation",
@@ -9,35 +16,29 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
     children,
-}: {
+}: Readonly<{
     children: React.ReactNode;
-}) {
+}>) {
     return (
-        <html lang="en">
-            <head>
-                <link
-                    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-                    rel="stylesheet"
-                />
-            </head>
+        <html lang="en" className={spaceGrotesk.variable}>
             <body>
                 <div className="container">
                     <nav className="nav">
-                        <a href="/" className="nav-brand">
-                            ⚡ Permit Agent
-                        </a>
+                        <Link href="/" className="nav-brand">
+                            Permit Agent
+                        </Link>
                         <ul className="nav-links">
                             <li>
-                                <a href="/">Intake</a>
+                                <Link href="/">Intake</Link>
                             </li>
                             <li>
-                                <a href="/workflows">Workflows</a>
+                                <Link href="/workflows">Workflows</Link>
                             </li>
                         </ul>
                     </nav>
                     {children}
                     <div className="disclaimer">
-                        ⚠️ <strong>Legal Disclaimer:</strong> This tool provides automation
+                        <strong>Legal Disclaimer:</strong> This tool provides automation
                         support for permit research and document processing. It does not
                         constitute legal advice. All outputs should be reviewed by qualified
                         professionals before submission to governing authorities.

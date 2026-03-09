@@ -63,10 +63,14 @@ export function fail(
 }
 
 /* ---------- Route handler wrapper ---------- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function handler(fn: (req: Request, ctx?: any) => Promise<NextResponse>) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return async (req: Request, ctx?: any) => {
+type RouteContext = {
+    params?: Promise<Record<string, string | string[]>>;
+};
+
+export function handler(
+    fn: (req: Request, ctx?: RouteContext) => Promise<NextResponse>
+) {
+    return async (req: Request, ctx?: RouteContext) => {
         try {
             return await fn(req, ctx);
         } catch (err) {

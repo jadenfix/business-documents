@@ -12,7 +12,7 @@ export interface BlobObject {
 
 const localBlobRoot = path.join(process.cwd(), ".local", "blob");
 
-function useLocalBlobStorage() {
+function shouldUseLocalBlobStorage() {
     return !process.env.BLOB_READ_WRITE_TOKEN;
 }
 
@@ -77,7 +77,7 @@ export async function uploadBlob(
 ) {
     const size = await getPayloadSize(data);
 
-    if (useLocalBlobStorage()) {
+    if (shouldUseLocalBlobStorage()) {
         const buffer = await toBuffer(data);
         const absolutePath = getLocalBlobPath(pathname);
         await fs.mkdir(path.dirname(absolutePath), { recursive: true });
@@ -108,7 +108,7 @@ export async function uploadBlob(
 }
 
 export async function listBlobs(prefix: string) {
-    if (useLocalBlobStorage()) {
+    if (shouldUseLocalBlobStorage()) {
         const blobs = await walkLocalBlobs(localBlobRoot);
         return blobs.filter((blob) => blob.pathname.startsWith(prefix));
     }
@@ -123,7 +123,7 @@ export async function listBlobs(prefix: string) {
 }
 
 export async function readBlob(pathname: string) {
-    if (useLocalBlobStorage()) {
+    if (shouldUseLocalBlobStorage()) {
         const absolutePath = getLocalBlobPath(pathname);
         const data = await fs.readFile(absolutePath);
         return {
@@ -151,7 +151,7 @@ export async function readBlob(pathname: string) {
 }
 
 export async function deleteBlob(target: string) {
-    if (useLocalBlobStorage()) {
+    if (shouldUseLocalBlobStorage()) {
         const pathname = target.startsWith("/api/blob/") ? target.replace("/api/blob/", "") : target;
         await fs.rm(getLocalBlobPath(pathname), { force: true });
         return;
