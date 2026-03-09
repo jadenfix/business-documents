@@ -23,7 +23,16 @@ export default function AppShell({
     children: React.ReactNode;
 }>) {
     const pathname = usePathname();
-    const [theme, setTheme] = useState<ThemeMode>("light");
+    const [theme, setTheme] = useState<ThemeMode>(() => {
+        if (typeof document !== "undefined") {
+            const activeTheme = document.documentElement.dataset.theme;
+            if (activeTheme === "light" || activeTheme === "dark") {
+                return activeTheme;
+            }
+        }
+
+        return "light";
+    });
 
     useEffect(() => {
         const savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
@@ -108,6 +117,7 @@ export default function AppShell({
                             data-theme-mode={theme}
                             role="group"
                             aria-label="Theme mode"
+                            suppressHydrationWarning
                         >
                             <button
                                 type="button"

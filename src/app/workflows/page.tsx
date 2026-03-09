@@ -42,7 +42,7 @@ export default function WorkflowsPage() {
     }, []);
 
     return (
-        <main>
+        <main className="motion-enter">
             <div className="page-header">
                 <h1>Workflows</h1>
                 <p>Track your active permit application workflows.</p>
@@ -67,7 +67,7 @@ export default function WorkflowsPage() {
                         <Link
                             key={workflow.id}
                             href={`/workflows/${workflow.id}`}
-                            style={{ textDecoration: "none", color: "inherit" }}
+                            className="card-link"
                         >
                             <div className="card">
                                 <div
