@@ -10,6 +10,8 @@ coverage
 playwright-report
 test-results
 tsconfig.tsbuildinfo
+local.db
+.local
 
 # env
 .env
