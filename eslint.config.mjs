@@ -7,7 +7,7 @@ const compat = new FlatCompat({
   baseDirectory: dirname(fileURLToPath(import.meta.url)),
 });
 
-export default [
+const config = [
   ...compat.config(nextVitals),
   {
     ignores: [
@@ -20,3 +20,5 @@ export default [
     ],
   },
 ];
+
+export default config;
