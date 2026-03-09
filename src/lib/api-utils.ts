@@ -68,9 +68,9 @@ type RouteContext = {
 };
 
 export function handler(
-    fn: (req: Request, ctx?: RouteContext) => Promise<NextResponse>
+    fn: (req: Request, ctx: RouteContext) => Promise<NextResponse>
 ) {
-    return async (req: Request, ctx?: RouteContext) => {
+    return async (req: Request, ctx: RouteContext) => {
         try {
             return await fn(req, ctx);
         } catch (err) {
