@@ -1,5 +1,6 @@
-import { success, fail } from "@/lib/api-utils";
-import { getWorkflow, getGaps } from "@/lib/db/repositories";
+import { fail, success } from "@/lib/api-utils";
+import { getWorkflow } from "@/lib/db/repositories";
+import { recomputeWorkflowGaps } from "@/lib/workflows";
 
 export async function GET(
     _req: Request,
@@ -8,20 +9,22 @@ export async function GET(
     try {
         const { id } = await params;
         const workflow = await getWorkflow(id);
-        if (!workflow) return fail("not_found", "Workflow not found", 404);
+        if (!workflow) {
+            return fail("not_found", "Workflow not found", 404);
+        }
 
-        const gaps = await getGaps(id);
-        const blocking = gaps.filter((g) => g.blocking && !g.resolvedAt);
-        const nonBlocking = gaps.filter((g) => !g.blocking || !!g.resolvedAt);
+        const gaps = await recomputeWorkflowGaps(id);
+        const blocking = gaps.filter((gap) => gap.blocking);
+        const nonBlocking = gaps.filter((gap) => !gap.blocking);
 
         return success({
             workflowId: id,
             blocking,
             nonBlocking,
-            canExport: blocking.length === 0 && !!workflow.reviewApprovedAt,
+            canExport: blocking.length === 0 && Boolean(workflow.reviewApprovedAt),
         });
-    } catch (err) {
-        console.error("[api]", err);
+    } catch (error) {
+        console.error("[api]", error);
         return fail("internal", "An unexpected error occurred");
     }
 }

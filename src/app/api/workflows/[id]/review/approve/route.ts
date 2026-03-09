@@ -1,14 +1,15 @@
-import { success, fail, parseBody } from "@/lib/api-utils";
-import { ReviewApprovalSchema } from "@/contracts";
+import { WORKFLOW_EVENTS, ReviewApprovalSchema } from "@/contracts";
+import { fail, parseBody, success } from "@/lib/api-utils";
 import {
-    getWorkflow,
+    addWorkflowReviewDecision,
+    approveFormFills,
     approveWorkflow,
-    getGaps,
     getFormFills,
+    getWorkflow,
 } from "@/lib/db/repositories";
-import { inngest } from "@/lib/inngest";
-import { WORKFLOW_EVENTS } from "@/contracts";
 import { LOW_CONFIDENCE_THRESHOLD } from "@/lib/forms";
+import { isInngestConfigured, sendEvent } from "@/lib/inngest/client";
+import { recomputeWorkflowGaps } from "@/lib/workflows";
 
 export async function POST(
     req: Request,
@@ -17,29 +18,36 @@ export async function POST(
     try {
         const { id } = await params;
         const workflow = await getWorkflow(id);
-        if (!workflow) return fail("not_found", "Workflow not found", 404);
+        if (!workflow) {
+            return fail("not_found", "Workflow not found", 404);
+        }
 
         const body = await parseBody(req, ReviewApprovalSchema);
+        const fills = await getFormFills(id);
+        const lowConfidence = fills.filter(
+            (fill) => fill.confidence < LOW_CONFIDENCE_THRESHOLD && !fill.approvedAt
+        );
 
-        // Check for blocking gaps
-        const gaps = await getGaps(id);
-        const blockingGaps = gaps.filter((g) => g.blocking && !g.resolvedAt);
-
-        // Check for unapproved low-confidence fills
-        if (!body.approveLowConfidence) {
-            const fills = await getFormFills(id);
-            const lowConfidence = fills.filter(
-                (f) => f.confidence < LOW_CONFIDENCE_THRESHOLD && !f.approvedAt
+        if (lowConfidence.length > 0 && !body.approveLowConfidence) {
+            return fail(
+                "policy",
+                `${lowConfidence.length} low-confidence field(s) require explicit approval.`,
+                422,
+                { fields: lowConfidence.map((fill) => fill.fieldName) }
             );
-            if (lowConfidence.length > 0) {
-                return fail(
-                    "policy",
-                    `${lowConfidence.length} low-confidence field(s) require explicit approval. Set approveLowConfidence to true or review each field.`,
-                    422,
-                    { fields: lowConfidence.map((f) => f.fieldName) }
-                );
-            }
         }
+
+        if (body.approveLowConfidence && lowConfidence.length > 0) {
+            await approveFormFills(
+                id,
+                lowConfidence.map((fill) => fill.id),
+                body.approver,
+                body.note
+            );
+        }
+
+        const gaps = await recomputeWorkflowGaps(id);
+        const blockingGaps = gaps.filter((gap) => gap.blocking);
 
         if (blockingGaps.length > 0) {
             return fail(
@@ -51,15 +59,25 @@ export async function POST(
         }
 
         await approveWorkflow(id);
+        await addWorkflowReviewDecision(id, body.approver, body.note);
 
-        await inngest.send({
-            name: WORKFLOW_EVENTS.REVIEW_APPROVED,
-            data: { workflowId: id, approver: body.approver, note: body.note },
+        if (isInngestConfigured()) {
+            await sendEvent({
+                name: WORKFLOW_EVENTS.REVIEW_APPROVED,
+                data: {
+                    workflowId: id,
+                    approver: body.approver,
+                    note: body.note,
+                },
+            });
+        }
+
+        return success({
+            workflowId: id,
+            status: "review.approved",
         });
-
-        return success({ workflowId: id, status: "review.approved" });
-    } catch (err) {
-        console.error("[api]", err);
+    } catch (error) {
+        console.error("[api]", error);
         return fail("internal", "An unexpected error occurred");
     }
 }
