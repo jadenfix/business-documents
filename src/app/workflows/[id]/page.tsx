@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
     useCallback,
     useEffect,
@@ -239,6 +240,12 @@ function getFieldStateLabel(state: ReturnType<typeof getFieldState>) {
     if (state === "approved") return "Approved";
     if (state === "mapped") return "Mapped";
     return "Open";
+}
+
+function getStepState(isComplete: boolean, isCurrent: boolean) {
+    if (isComplete) return "done";
+    if (isCurrent) return "current";
+    return "todo";
 }
 
 function sortTemplateFields(template: FormTemplate) {
@@ -531,6 +538,11 @@ export default function WorkflowDetailPage() {
     const advisoryRequirements = requirements.length - officialRequirements;
     const evidenceLinks = new Set(citations.map((citation) => citation.url)).size;
     const processedDocuments = documents.filter((document) => document.status === "processed").length;
+    const hasResearch = requirements.length > 0;
+    const hasUploadedDocuments = documents.length > 0;
+    const hasTemplates = templates.length > 0;
+    const hasAutofillResults = fills.length > 0;
+    const canRunAutofill = hasTemplates && actionLoading !== "upload";
     const mappedCoverage =
         templates.length === 0
             ? 0
@@ -547,6 +559,50 @@ export default function WorkflowDetailPage() {
     const activeDocumentIndex = documents.findIndex((document) => document.id === activeDocumentId);
     const activeDocument =
         activeDocumentIndex >= 0 ? documents[activeDocumentIndex] : documents[0] ?? null;
+    const workflowSteps = [
+        {
+            label: "Research",
+            caption: hasResearch ? `${requirements.length} requirements captured` : "Run permit research first",
+            state: getStepState(hasResearch, !hasResearch),
+        },
+        {
+            label: "Upload Forms",
+            caption: hasUploadedDocuments
+                ? `${documents.length} files uploaded`
+                : "Add PDFs or supporting documents",
+            state: getStepState(hasUploadedDocuments, hasResearch && !hasUploadedDocuments),
+        },
+        {
+            label: "Autofill",
+            caption: hasAutofillResults
+                ? `${fills.length} mapped values ready`
+                : hasTemplates
+                  ? "Templates are ready for autofill"
+                  : "Needs an extracted form template",
+            state: getStepState(
+                hasAutofillResults,
+                hasUploadedDocuments && !hasAutofillResults
+            ),
+        },
+        {
+            label: "Review",
+            caption:
+                lowConfidenceFills.length > 0
+                    ? `${lowConfidenceFills.length} values need review`
+                    : hasAutofillResults
+                      ? "No flagged values right now"
+                      : "Review begins after autofill",
+            state: getStepState(
+                hasAutofillResults && lowConfidenceFills.length === 0,
+                hasAutofillResults && lowConfidenceFills.length > 0
+            ),
+        },
+        {
+            label: "Export",
+            caption: gaps?.canExport ? "Ready to build final bundle" : "Approval required before export",
+            state: getStepState(Boolean(gaps?.canExport), Boolean(workflow.reviewApprovedAt) && !gaps?.canExport),
+        },
+    ];
 
     function moveDocumentPreview(direction: -1 | 1) {
         if (!activeDocument) {
@@ -564,14 +620,26 @@ export default function WorkflowDetailPage() {
     return (
         <main>
             <div className="page-header">
-                <h1>
-                    {workflow.permitType}{" "}
-                    <span className="badge badge-stage">{formatLabel(workflow.status)}</span>
-                </h1>
-                <p>
-                    {workflow.jurisdiction} · {workflow.entityType} · Confidence:{" "}
-                    {(workflow.confidence * 100).toFixed(0)}%
-                </p>
+                <div className="page-header-main">
+                    <div>
+                        <h1>
+                            {workflow.permitType}{" "}
+                            <span className="badge badge-stage">{formatLabel(workflow.status)}</span>
+                        </h1>
+                        <p>
+                            {workflow.jurisdiction} · {workflow.entityType} · Confidence:{" "}
+                            {(workflow.confidence * 100).toFixed(0)}%
+                        </p>
+                    </div>
+                    <div className="page-header-actions">
+                        <Link href="/workflows" className="btn btn-ghost">
+                            All Workflows
+                        </Link>
+                        <Link href="/" className="btn btn-primary">
+                            New Chat
+                        </Link>
+                    </div>
+                </div>
             </div>
 
             <div className="tabs">
@@ -619,14 +687,14 @@ export default function WorkflowDetailPage() {
                                 onClick={() => triggerAction("research")}
                                 disabled={Boolean(actionLoading)}
                             >
-                                {actionLoading === "research" ? <span className="spinner" /> : "Research"}
+                                {actionLoading === "research" ? <span className="spinner" /> : "Run Research"}
                             </button>
                             <button
                                 className="btn btn-ghost"
                                 onClick={() => triggerAction("fill")}
-                                disabled={Boolean(actionLoading)}
+                                disabled={Boolean(actionLoading) || !canRunAutofill}
                             >
-                                {actionLoading === "fill" ? <span className="spinner" /> : "Fill Forms"}
+                                {actionLoading === "fill" ? <span className="spinner" /> : "Run Autofill"}
                             </button>
                             <button
                                 className="btn btn-ghost"
@@ -655,6 +723,25 @@ export default function WorkflowDetailPage() {
                                     "Build Combined Export"
                                 )}
                             </button>
+                        </div>
+                        <p className="helper-copy" style={{ marginTop: 12 }}>
+                            Autofill becomes available after at least one uploaded form has an extracted template.
+                        </p>
+                    </div>
+
+                    <div className="card" style={{ gridColumn: "1 / -1" }}>
+                        <h3>Workflow Path</h3>
+                        <div className="workflow-step-grid">
+                            {workflowSteps.map((step, index) => (
+                                <div
+                                    key={step.label}
+                                    className={`workflow-step-card workflow-step-${step.state}`}
+                                >
+                                    <div className="workflow-step-number">0{index + 1}</div>
+                                    <div className="workflow-step-title">{step.label}</div>
+                                    <div className="workflow-step-caption">{step.caption}</div>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </div>
@@ -908,7 +995,7 @@ export default function WorkflowDetailPage() {
                         </div>
 
                         <div className="card phase-summary-card">
-                            <h3>Phase 2 Snapshot</h3>
+                            <h3>Autofill Assistant</h3>
                             <div className="summary-metrics">
                                 <div className="summary-metric">
                                     <span className="metric-label">Processed docs</span>
@@ -932,6 +1019,67 @@ export default function WorkflowDetailPage() {
                             <p className="card-copy">
                                 Fillable PDFs create direct field maps. Scanned files stay visible in the review queue so you can see what still needs attention.
                             </p>
+                            <div className="autofill-guide">
+                                <div className={`guide-step ${hasUploadedDocuments ? "done" : "current"}`}>
+                                    <strong>1. Upload forms</strong>
+                                    <span>
+                                        Add at least one form PDF so the system can extract fields.
+                                    </span>
+                                </div>
+                                <div
+                                    className={`guide-step ${
+                                        hasAutofillResults ? "done" : hasTemplates ? "current" : ""
+                                    }`}
+                                >
+                                    <strong>2. Run autofill</strong>
+                                    <span>
+                                        {hasTemplates
+                                            ? "Templates are ready. Run autofill to map business data into fields."
+                                            : "Autofill unlocks once a template is extracted from an uploaded form."}
+                                    </span>
+                                </div>
+                                <div
+                                    className={`guide-step ${
+                                        hasAutofillResults && lowConfidenceFills.length === 0
+                                            ? "done"
+                                            : hasAutofillResults
+                                              ? "current"
+                                              : ""
+                                    }`}
+                                >
+                                    <strong>3. Review flagged values</strong>
+                                    <span>
+                                        {lowConfidenceFills.length > 0
+                                            ? `${lowConfidenceFills.length} mapped values need review.`
+                                            : "Low-confidence values will appear in the review queue below."}
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="action-row">
+                                <button
+                                    className="btn btn-primary"
+                                    onClick={() => triggerAction("fill")}
+                                    disabled={Boolean(actionLoading) || !canRunAutofill}
+                                >
+                                    {actionLoading === "fill" ? (
+                                        <span className="spinner" />
+                                    ) : (
+                                        hasAutofillResults ? "Run Autofill Again" : "Run Autofill"
+                                    )}
+                                </button>
+                                <button
+                                    className="btn btn-ghost"
+                                    onClick={() => setTab("gaps")}
+                                    disabled={!hasAutofillResults}
+                                >
+                                    Review Gaps
+                                </button>
+                            </div>
+                            {!hasTemplates ? (
+                                <p className="helper-copy" style={{ marginTop: 12 }}>
+                                    No fillable template is ready yet. Upload a form PDF first.
+                                </p>
+                            ) : null}
                         </div>
                     </div>
 

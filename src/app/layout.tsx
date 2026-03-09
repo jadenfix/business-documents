@@ -34,6 +34,9 @@ export default function RootLayout({
                             <li>
                                 <Link href="/workflows">Workflows</Link>
                             </li>
+                            <li>
+                                <Link href="/">New Chat</Link>
+                            </li>
                         </ul>
                     </nav>
                     {children}
