@@ -1,3 +1,17 @@
-import nextVitals from "eslint-config-next/core-web-vitals";
+import nextVitals from "eslint-config-next/core-web-vitals.js";
 
-export default [...nextVitals];
+const config = [
+  ...nextVitals,
+  {
+    ignores: [
+      ".next/**",
+      "coverage/**",
+      "drizzle/**",
+      "node_modules/**",
+      "playwright-report/**",
+      "test-results/**",
+    ],
+  },
+];
+
+export default config;

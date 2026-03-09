@@ -85,6 +85,7 @@ export const formTemplates = sqliteTable("form_templates", {
         .notNull()
         .references(() => documents.id),
     name: text("name").notNull(),
+    sourceMode: text("source_mode").notNull().default("fillable"),
     fieldCount: integer("field_count").notNull().default(0),
     createdAt: ts("created_at"),
 });
@@ -140,6 +141,19 @@ export const exports_ = sqliteTable("exports", {
     type: text("type").notNull(),
     blobPath: text("blob_path").notNull(),
     manifestPath: text("manifest_path").notNull(),
+    createdAt: ts("created_at"),
+});
+
+/* ---------- review decisions ---------- */
+export const reviewDecisions = sqliteTable("review_decisions", {
+    id: id(),
+    workflowId: text("workflow_id")
+        .notNull()
+        .references(() => workflows.id),
+    formFillId: text("form_fill_id").references(() => formFills.id),
+    decisionType: text("decision_type").notNull(),
+    approver: text("approver").notNull(),
+    note: text("note"),
     createdAt: ts("created_at"),
 });
 

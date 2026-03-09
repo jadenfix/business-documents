@@ -22,3 +22,4 @@ tsconfig.tsbuildinfo
 
 # vercel
 .vercel
+.env*.local
