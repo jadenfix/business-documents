@@ -1,14 +1,12 @@
 import { complete, hasAnthropicAccess } from "@/lib/llm";
 
-const OFFICIAL_DOMAINS = [
-    ".gov",
-    ".us",
-    ".state.",
-    "ca.gov",
-    "ny.gov",
-    "permits.",
-    "licensing.",
-];
+const US_STATE_CODES = new Set([
+    "al", "ak", "az", "ar", "ca", "co", "ct", "de", "dc", "fl", "ga", "hi",
+    "id", "il", "in", "ia", "ks", "ky", "la", "me", "md", "ma", "mi", "mn",
+    "ms", "mo", "mt", "ne", "nv", "nh", "nj", "nm", "ny", "nc", "nd", "oh",
+    "ok", "or", "pa", "ri", "sc", "sd", "tn", "tx", "ut", "vt", "va", "wa",
+    "wv", "wi", "wy", "as", "gu", "mp", "pr", "vi",
+]);
 
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const researchCache = new Map<string, { expiresAt: number; value: ResearchResult }>();
@@ -32,10 +30,17 @@ const STOPWORDS = new Set([
 
 export function isOfficialSource(url: string): boolean {
     try {
-        const hostname = new URL(url).hostname.toLowerCase();
-        return OFFICIAL_DOMAINS.some(
-            (domain) => hostname.endsWith(domain) || hostname.includes(domain)
-        );
+        const parsed = new URL(url);
+        if (!["http:", "https:"].includes(parsed.protocol)) return false;
+        const hostname = parsed.hostname.toLowerCase().replace(/\.$/, "");
+        if (hostname.endsWith(".gov")) return true;
+        // .us is publicly registrable. Only the state government hierarchy
+        // is recognized without a separately verified domain allowlist.
+        const labels = hostname.split(".");
+        const stateIndex = labels.length - 3;
+        return labels.at(-1) === "us" &&
+            US_STATE_CODES.has(labels.at(-2) ?? "") &&
+            stateIndex >= 0 && labels[stateIndex] === "state";
     } catch {
         return false;
     }
