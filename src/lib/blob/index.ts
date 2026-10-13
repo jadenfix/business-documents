@@ -31,16 +31,20 @@ async function getLocalBlobPath(pathname: string) {
     let existing = target;
     for (;;) {
         try {
-            const canonical = await fs.realpath(existing);
-            const resolvedRelative = path.relative(canonicalRoot, canonical);
-            if (resolvedRelative === ".." || resolvedRelative.startsWith(`..${path.sep}`) || path.isAbsolute(resolvedRelative)) {
-                throw new Error("Blob symlink must stay inside local storage");
-            }
-            break;
+            // lstat distinguishes a missing path from a dangling symlink.
+            // A dangling symlink must not be skipped before a later write.
+            await fs.lstat(existing);
         } catch (error) {
             if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
             existing = path.dirname(existing);
+            continue;
         }
+        const canonical = await fs.realpath(existing);
+        const resolvedRelative = path.relative(canonicalRoot, canonical);
+        if (resolvedRelative === ".." || resolvedRelative.startsWith(`..${path.sep}`) || path.isAbsolute(resolvedRelative)) {
+            throw new Error("Blob symlink must stay inside local storage");
+        }
+        break;
     }
     return target;
 }

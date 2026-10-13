@@ -19,6 +19,22 @@ describe("local blob confinement", () => {
     await deleteBlob(`/api/blob/${name}`);
     await expect(readBlob(name)).rejects.toThrow();
   });
+  it.each(["file", "directory"])("rejects dangling %s symlinks without creating outside data", async (kind) => {
+    const outside = await fs.mkdtemp(path.join(os.tmpdir(), "blob-dangling-"));
+    const destination = path.join(outside, "not-created");
+    try {
+      await fs.mkdir(path.join(root, prefix), { recursive: true });
+      const link = path.join(root, prefix, "dangling");
+      await fs.symlink(destination, link);
+      const name = `${prefix}/dangling${kind === "directory" ? "/secret.json" : ""}`;
+      await expect(readBlob(name)).rejects.toThrow();
+      await expect(uploadBlob(name, "changed", "application/json")).rejects.toThrow();
+      await expect(deleteBlob(name)).rejects.toThrow();
+      await expect(fs.lstat(destination)).rejects.toMatchObject({ code: "ENOENT" });
+      // The boundary check must leave the rejected symlink intact.
+      expect((await fs.lstat(link)).isSymbolicLink()).toBe(true);
+    } finally { await fs.rm(outside, { recursive: true, force: true }); }
+  });
   it("rejects symlink escapes without changing outside data", async () => {
     const outside = await fs.mkdtemp(path.join(os.tmpdir(), "blob-outside-"));
     try {
