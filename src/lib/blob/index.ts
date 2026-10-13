@@ -16,8 +16,33 @@ function shouldUseLocalBlobStorage() {
     return !process.env.BLOB_READ_WRITE_TOKEN;
 }
 
-function getLocalBlobPath(pathname: string) {
-    return path.join(localBlobRoot, pathname);
+async function getLocalBlobPath(pathname: string) {
+    if (!pathname || pathname.includes("\\") || pathname.includes("\0") || path.isAbsolute(pathname)) {
+        throw new Error("Blob path must be relative to local storage");
+    }
+    const root = path.resolve(localBlobRoot);
+    const target = path.resolve(root, pathname);
+    const relative = path.relative(root, target);
+    if (!relative || relative === ".." || relative.startsWith(`..${path.sep}`)) {
+        throw new Error("Blob path must stay inside local storage");
+    }
+    await fs.mkdir(root, { recursive: true });
+    const canonicalRoot = await fs.realpath(root);
+    let existing = target;
+    for (;;) {
+        try {
+            const canonical = await fs.realpath(existing);
+            const resolvedRelative = path.relative(canonicalRoot, canonical);
+            if (resolvedRelative === ".." || resolvedRelative.startsWith(`..${path.sep}`) || path.isAbsolute(resolvedRelative)) {
+                throw new Error("Blob symlink must stay inside local storage");
+            }
+            break;
+        } catch (error) {
+            if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+            existing = path.dirname(existing);
+        }
+    }
+    return target;
 }
 
 function inferContentType(pathname: string) {
@@ -79,7 +104,7 @@ export async function uploadBlob(
 
     if (shouldUseLocalBlobStorage()) {
         const buffer = await toBuffer(data);
-        const absolutePath = getLocalBlobPath(pathname);
+        const absolutePath = await getLocalBlobPath(pathname);
         await fs.mkdir(path.dirname(absolutePath), { recursive: true });
         await fs.writeFile(absolutePath, buffer);
 
@@ -124,7 +149,7 @@ export async function listBlobs(prefix: string) {
 
 export async function readBlob(pathname: string) {
     if (shouldUseLocalBlobStorage()) {
-        const absolutePath = getLocalBlobPath(pathname);
+        const absolutePath = await getLocalBlobPath(pathname);
         const data = await fs.readFile(absolutePath);
         return {
             data,
@@ -153,7 +178,7 @@ export async function readBlob(pathname: string) {
 export async function deleteBlob(target: string) {
     if (shouldUseLocalBlobStorage()) {
         const pathname = target.startsWith("/api/blob/") ? target.replace("/api/blob/", "") : target;
-        await fs.rm(getLocalBlobPath(pathname), { force: true });
+        await fs.rm(await getLocalBlobPath(pathname), { force: true });
         return;
     }
 
