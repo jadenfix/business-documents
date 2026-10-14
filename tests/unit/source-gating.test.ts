@@ -23,3 +23,23 @@ describe("source gating", () => {
         expect(gateSource("not-a-url")).toBe("advisory");
     });
 });
+
+
+describe("official domain boundaries", () => {
+    it.each([
+        "https://nyc.gov.attacker.com/form",
+        "https://permits.attacker.com/form",
+        "https://licensing.attacker.com/form",
+        "https://fake.state.attacker.com/form",
+        "https://private-business.us/form",
+        "https://notca.gov.example.org/form",
+        "https://nyc.gov@attacker.com/form",
+        "ftp://nyc.gov/form",
+    ])("does not certify %s", (url) => {
+        expect(isOfficialSource(url)).toBe(false);
+        expect(gateSource(url)).toBe("advisory");
+    });
+    it("handles canonical trailing-dot government domains", () => {
+        expect(isOfficialSource("https://www.nyc.gov./form")).toBe(true);
+    });
+});
