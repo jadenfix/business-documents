@@ -1,5 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { PDFDocument } from "pdf-lib";
+import { unzipSync } from "fflate";
+import { createHash } from "node:crypto";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 
 test("local intake, PDF upload, approval and ZIP export persist", async ({ page, request }) => {
     const errors: string[] = [];
@@ -43,8 +46,40 @@ test("local intake, PDF upload, approval and ZIP export persist", async ({ page,
     expect(exported.data.exports).toHaveLength(1);
     const zip = await request.get(exported.data.exports[0].downloadUrl);
     expect(zip.ok()).toBe(true);
-    expect((await zip.body()).subarray(0, 2).toString()).toBe("PK");
+    const zipBytes = await zip.body();
+    const entries = unzipSync(zipBytes);
+    expect(Object.keys(entries)).toContain("manifest.json");
+    const filledPdfName = Object.keys(entries).find(name => name.startsWith("generated/") && name.endsWith(".pdf"));
+    expect(filledPdfName).toBeTruthy();
+    const filledPdf = await PDFDocument.load(entries[filledPdfName!]);
+    expect(filledPdf.getForm().getTextField("business_name").getText()).toContain("Acme Bakery");
+    await mkdir(".local", { recursive: true });
+    await writeFile(".local/browser-restart-receipt.json", JSON.stringify({
+        id, downloadUrl: exported.data.exports[0].downloadUrl,
+        sha256: createHash("sha256").update(zipBytes).digest("hex")
+    }));
     await page.reload();
     await page.getByRole("button", { name: "Exports", exact: true }).click();
+    expect(errors).toEqual([]);
+});
+
+
+test("persisted workflow survives application restart", async ({ page, request }) => {
+    const receipt = JSON.parse(await readFile(".local/browser-restart-receipt.json", "utf8"));
+    const errors: string[] = [];
+    page.on("pageerror", error => errors.push(error.message));
+    await page.goto(`/workflows/${receipt.id}`);
+    await page.getByRole("button", { name: "Exports", exact: true }).click();
+    const link = page.getByRole("link", { name: "Download zip" });
+    await expect(link).toHaveAttribute("href", receipt.downloadUrl);
+    const downloadPromise = page.waitForEvent("download");
+    await link.click();
+    const download = await downloadPromise;
+    const savedPath = await download.path();
+    expect(savedPath).toBeTruthy();
+    const bytes = await readFile(savedPath!);
+    expect(createHash("sha256").update(bytes).digest("hex")).toBe(receipt.sha256);
+    const persisted = await request.get(`/api/workflows/${receipt.id}/exports`);
+    expect((await persisted.json()).data.exports).toHaveLength(1);
     expect(errors).toEqual([]);
 });

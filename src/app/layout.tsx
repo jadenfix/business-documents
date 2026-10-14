@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
-import { Space_Grotesk } from "next/font/google";
+import localFont from "next/font/local";
 import AppShell from "@/components/app-shell";
 import "@/styles/globals.css";
 
-const spaceGrotesk = Space_Grotesk({
-    subsets: ["latin"],
+const spaceGrotesk = localFont({
+    src: "./fonts/space-grotesk-latin-variable.woff2",
+    weight: "300 700",
+    display: "swap",
     variable: "--font-ui",
 });
 
